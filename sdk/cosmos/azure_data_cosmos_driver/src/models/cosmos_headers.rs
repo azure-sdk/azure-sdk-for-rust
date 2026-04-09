@@ -19,6 +19,7 @@ pub(crate) mod request_header_names {
     pub static SESSION_TOKEN: HeaderName = HeaderName::from_static("x-ms-session-token");
     pub static IF_MATCH: HeaderName = HeaderName::from_static("if-match");
     pub static IF_NONE_MATCH: HeaderName = HeaderName::from_static("if-none-match");
+    pub static PREFER: HeaderName = HeaderName::from_static("prefer");
 }
 
 /// Standard Cosmos DB response header names.
