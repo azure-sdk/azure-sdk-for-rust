@@ -58,3 +58,31 @@ pub(crate) fn parse_metadata_and_replication_headers(
     }
     (metadata, object_replication_rules)
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::models::HttpRange;
+
+    #[test]
+    fn http_range_formats_correctly() {
+        // offset=512, length=1024 → bytes=512-1535
+        let range = HttpRange::new(512, 1024);
+        assert_eq!(range.to_string(), "bytes=512-1535");
+    }
+
+    #[test]
+    fn format_filter_expression_empty_map() {
+        let result = format_filter_expression(&HashMap::new());
+        assert!(result.is_err());
+        assert_eq!(result.unwrap_err().kind(), ErrorKind::InvalidInput);
+    }
+
+    #[test]
+    fn format_filter_expression_valid() {
+        let mut tags = HashMap::new();
+        tags.insert("env".to_string(), "prod".to_string());
+        let result = format_filter_expression(&tags);
+        assert_eq!(result.unwrap(), "\"env\"='prod'");
+    }
+}
