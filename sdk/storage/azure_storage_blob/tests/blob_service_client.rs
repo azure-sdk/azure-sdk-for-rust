@@ -216,8 +216,8 @@ async fn test_find_blobs_by_tags_service(ctx: TestContext) -> Result<(), Box<dyn
     )
     .await?;
 
-    // Sleep in live mode to allow tags to be indexed on the service
-    if recording.test_mode() == TestMode::Live {
+    // Sleep in live and record modes to allow tags to be indexed on the service
+    if recording.test_mode() != TestMode::Playback {
         time::sleep(Duration::from_secs(5)).await;
     }
 
@@ -265,7 +265,8 @@ async fn test_find_blobs_by_tags_service(ctx: TestContext) -> Result<(), Box<dyn
     Ok(())
 }
 
-#[recorded::test(playback)]
+#[recorded::test]
+#[ignore = "needs to be re-recorded by service team"]
 async fn test_get_service_stats(ctx: TestContext) -> Result<(), Box<dyn Error>> {
     // Recording Setup
     let recording = ctx.recording();
