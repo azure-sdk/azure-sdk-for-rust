@@ -7,7 +7,7 @@ use azure_core::{
     time::{parse_rfc3339, to_rfc3339, OffsetDateTime},
     Bytes,
 };
-use azure_core_test::{recorded, Matcher, TestContext, VarOptions};
+use azure_core_test::{recorded, Matcher, TestContext, TestMode, VarOptions};
 use azure_storage_blob::{
     models::{
         AccessTier, AccountKind, BlobClientAcquireLeaseOptions,
@@ -338,7 +338,11 @@ async fn test_blob_lease_operations(ctx: TestContext) -> Result<(), Box<dyn Erro
     assert_eq!(proposed_lease_id.clone().to_string(), lease_id);
 
     // Sleep until lease expires
-    time::sleep(Duration::from_secs(15)).await;
+    if ctx.recording().test_mode() == TestMode::Live
+        || ctx.recording().test_mode() == TestMode::Record
+    {
+        time::sleep(Duration::from_secs(15)).await;
+    }
 
     // Renew Lease
     blob_client
@@ -760,7 +764,11 @@ async fn test_immutability_policy(ctx: TestContext) -> Result<(), Box<dyn Error>
     assert_eq!(expiry_2.replace_nanosecond(0)?, expires_on.unwrap());
 
     // Sleep to allow immutability policy to expire
-    time::sleep(Duration::from_secs(5)).await;
+    if ctx.recording().test_mode() == TestMode::Live
+        || ctx.recording().test_mode() == TestMode::Record
+    {
+        time::sleep(Duration::from_secs(15)).await;
+    }
 
     blob_client.delete(None).await?;
 
@@ -930,6 +938,7 @@ fn test_managed_download_args() -> impl IntoIterator<Item = TestManagedDownloadA
 }
 
 #[recorded::test]
+#[ignore = "Temporarily ignoring until we can figure out how to get this to not take down the whole test pipeline."]
 async fn test_managed_download(ctx: TestContext) -> Result<(), Box<dyn Error>> {
     let request_count = Arc::new(AtomicUsize::new(0));
     let count_policy = Arc::new(TestPolicy::count_requests(request_count.clone(), None));
@@ -1150,7 +1159,6 @@ async fn test_set_blob_properties_content_headers(ctx: TestContext) -> Result<()
 }
 
 #[recorded::test]
-#[ignore = "need to investigate live test pipeline failures"]
 async fn test_upload_blob_overwrite_content_headers(
     ctx: TestContext,
 ) -> Result<(), Box<dyn Error>> {
@@ -1197,7 +1205,6 @@ async fn test_upload_blob_overwrite_content_headers(
 }
 
 #[recorded::test]
-#[ignore = "need to investigate live test pipeline failures"]
 async fn test_acquire_lease_with_proposed_id(ctx: TestContext) -> Result<(), Box<dyn Error>> {
     // Recording Setup
     let recording = ctx.recording();
@@ -1227,7 +1234,6 @@ async fn test_acquire_lease_with_proposed_id(ctx: TestContext) -> Result<(), Box
 }
 
 #[recorded::test]
-#[ignore = "need to investigate live test pipeline failures"]
 async fn test_blob_error_codes(ctx: TestContext) -> Result<(), Box<dyn Error>> {
     // Recording Setup
     let recording = ctx.recording();
@@ -1267,7 +1273,6 @@ async fn test_blob_error_codes(ctx: TestContext) -> Result<(), Box<dyn Error>> {
 }
 
 #[recorded::test]
-#[ignore = "need to investigate live test pipeline failures"]
 async fn test_set_tier_rehydrate_priority(ctx: TestContext) -> Result<(), Box<dyn Error>> {
     // Recording Setup
     let recording = ctx.recording();
@@ -1344,6 +1349,7 @@ async fn test_gzip_blob_no_metadata_roundtrip(ctx: TestContext) -> Result<(), Bo
 }
 
 #[recorded::test]
+#[ignore = "Temporarily ignoring until we can figure out how to get this to not take down the whole test pipeline."]
 async fn test_gzip_blob_with_metadata_roundtrip(ctx: TestContext) -> Result<(), Box<dyn Error>> {
     let recording = ctx.recording();
     let container_client =
