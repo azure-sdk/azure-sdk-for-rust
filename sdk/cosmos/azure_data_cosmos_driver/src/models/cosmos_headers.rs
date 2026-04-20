@@ -6,6 +6,7 @@
 use crate::models::{ActivityId, ETag, Precondition, RequestCharge, SessionToken, SubStatusCode};
 use azure_core::http::headers::{HeaderValue, Headers};
 use base64::{engine::general_purpose::STANDARD, Engine as _};
+use serde::Serialize;
 
 /// Standard Cosmos DB request header names.
 ///
@@ -19,6 +20,8 @@ pub(crate) mod request_header_names {
     pub const IF_MATCH: &str = "if-match";
     pub const IF_NONE_MATCH: &str = "if-none-match";
     pub const PREFER: &str = "prefer";
+    pub const OFFER_THROUGHPUT: &str = "x-ms-offer-throughput";
+    pub const OFFER_AUTOPILOT_SETTINGS: &str = "x-ms-cosmos-offer-autopilot-settings";
     pub const PRIORITY_LEVEL: &str = "x-ms-cosmos-priority-level";
     pub const THROUGHPUT_BUCKET: &str = "x-ms-cosmos-throughput-bucket";
 }
@@ -62,6 +65,14 @@ pub struct CosmosRequestHeaders {
 
     /// Precondition for optimistic concurrency (`if-match` / `if-none-match`).
     pub precondition: Option<Precondition>,
+
+    /// Manual throughput in RU/s (`x-ms-offer-throughput`).
+    pub offer_throughput: Option<usize>,
+
+    /// Autoscale settings (`x-ms-cosmos-offer-autopilot-settings`).
+    ///
+    /// The driver serializes this to JSON for the header value.
+    pub offer_autopilot_settings: Option<OfferAutoscaleSettings>,
 }
 
 impl CosmosRequestHeaders {
@@ -96,7 +107,71 @@ impl CosmosRequestHeaders {
                 ),
             }
         }
+        if let Some(throughput) = self.offer_throughput {
+            headers.insert(
+                request_header_names::OFFER_THROUGHPUT,
+                HeaderValue::from(throughput.to_string()),
+            );
+        }
+        if let Some(autopilot) = self.offer_autopilot_settings.as_ref() {
+            if let Ok(json) = serde_json::to_string(autopilot) {
+                headers.insert(
+                    request_header_names::OFFER_AUTOPILOT_SETTINGS,
+                    HeaderValue::from(json),
+                );
+            }
+        }
     }
+}
+
+/// Autoscale throughput settings for the `x-ms-cosmos-offer-autopilot-settings` header.
+#[derive(Clone, Debug, Default, Serialize)]
+#[serde(rename_all = "camelCase")]
+#[non_exhaustive]
+pub struct OfferAutoscaleSettings {
+    /// Maximum throughput in RU/s for autoscale.
+    pub max_throughput: usize,
+
+    /// Auto-upgrade policy for scaling behavior.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub auto_upgrade_policy: Option<AutoscaleAutoUpgradePolicy>,
+}
+
+impl OfferAutoscaleSettings {
+    /// Creates autoscale settings with the given maximum throughput.
+    pub fn new(max_throughput: usize) -> Self {
+        Self {
+            max_throughput,
+            auto_upgrade_policy: None,
+        }
+    }
+
+    /// Sets the auto-upgrade policy with the given increment percent.
+    pub fn with_increment_percent(mut self, increment_percent: usize) -> Self {
+        self.auto_upgrade_policy = Some(AutoscaleAutoUpgradePolicy {
+            throughput_policy: Some(AutoscaleThroughputPolicy { increment_percent }),
+        });
+        self
+    }
+}
+
+/// Auto-upgrade policy for autoscale throughput.
+#[derive(Clone, Debug, Default, Serialize)]
+#[serde(rename_all = "camelCase")]
+#[non_exhaustive]
+pub struct AutoscaleAutoUpgradePolicy {
+    /// Throughput scaling policy.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub throughput_policy: Option<AutoscaleThroughputPolicy>,
+}
+
+/// Throughput scaling policy for autoscale.
+#[derive(Clone, Debug, Default, Serialize)]
+#[serde(rename_all = "camelCase")]
+#[non_exhaustive]
+pub struct AutoscaleThroughputPolicy {
+    /// Percentage to increment throughput during auto-upgrade.
+    pub increment_percent: usize,
 }
 
 /// Cosmos-specific headers extracted from HTTP response.
@@ -400,6 +475,8 @@ mod tests {
             activity_id: Some(ActivityId::from_string("test-request".to_string())),
             session_token: Some(SessionToken::new("session-token".to_string())),
             precondition: None,
+            offer_throughput: None,
+            offer_autopilot_settings: None,
         };
 
         assert_eq!(
@@ -418,6 +495,8 @@ mod tests {
             activity_id: Some(ActivityId::from_string("test-request".to_string())),
             session_token: Some(SessionToken::new("session-token".to_string())),
             precondition: None,
+            offer_throughput: None,
+            offer_autopilot_settings: None,
         };
         let mut headers = Headers::new();
 
@@ -439,6 +518,8 @@ mod tests {
             activity_id: None,
             session_token: None,
             precondition: Some(Precondition::if_match(ETag::new("etag-value-1"))),
+            offer_throughput: None,
+            offer_autopilot_settings: None,
         };
         let mut headers = Headers::new();
 
@@ -460,6 +541,8 @@ mod tests {
             activity_id: None,
             session_token: None,
             precondition: Some(Precondition::if_none_match(ETag::new("*"))),
+            offer_throughput: None,
+            offer_autopilot_settings: None,
         };
         let mut headers = Headers::new();
 
@@ -481,6 +564,8 @@ mod tests {
             activity_id: None,
             session_token: None,
             precondition: None,
+            offer_throughput: None,
+            offer_autopilot_settings: None,
         };
         let mut headers = Headers::new();
 
@@ -502,6 +587,8 @@ mod tests {
             activity_id: Some(ActivityId::from_string("corr-id-1".to_string())),
             session_token: Some(SessionToken::new("session:100".to_string())),
             precondition: Some(Precondition::if_match(ETag::new("etag-abc"))),
+            offer_throughput: None,
+            offer_autopilot_settings: None,
         };
         let mut headers = Headers::new();
 
