@@ -91,12 +91,12 @@ path = "sdk/storage/azure_storage_blob"
 version = "0.13.0"
 
 [workspace.dependencies.azure_data_cosmos]
-version = "0.33.0"
+version = "0.34.0"
 path = "sdk/cosmos/azure_data_cosmos"
 
 [workspace.dependencies.azure_data_cosmos_driver]
 default-features = false
-version = "0.2.0"
+version = "0.3.0"
 path = "sdk/cosmos/azure_data_cosmos_driver"
 
 [workspace.dependencies.azure_data_cosmos_macros]
